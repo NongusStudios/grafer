@@ -5,7 +5,7 @@ import "core:strings"
 import "core:strconv"
 import m "core:math"
 
-import rl "vendor:raylib"
+
 
 /* Details for math notation
     -- variables
@@ -387,6 +387,8 @@ Program :: struct {
 }
 
 init_program_table :: proc() {
+    using state
+
     program_table_free = make([dynamic]int, 0, PROGRAM_TABLE_SIZE)
     variable_table = init_vtab()
     for i := 0; i < PROGRAM_TABLE_SIZE; i += 1 {
@@ -395,6 +397,8 @@ init_program_table :: proc() {
 }
 
 free_program_table :: proc() {
+    using state
+
     for program in program_table { free_program(program) }
     free_vtab(&variable_table)
     delete(program_table_free)
@@ -430,17 +434,8 @@ compile_ast_node :: proc(instructions: ^[dynamic]Instruction, node: ^Ast_Node) -
     #partial switch node.type {
         case .Var: append(instructions, Push_Var{name = node.data})
         case .Value: append(instructions, Push_Value{value = strconv.atof(node.data)})
-        case .Binary_Op: switch data {
-            case "+": append(instructions, Binary_Op{op = '+'})
-            case "-": append(instructions, Binary_Op{op = '-'})
-            case "*": append(instructions, Binary_Op{op = '*'})
-            case "/": append(instructions, Binary_Op{op = '/'})
-            case "^": append(instructions, Binary_Op{op = '^'})
-        }
-        case .Unary_Op: switch data {
-            case "+": append(instructions, Unary_Op{op = '+'})
-            case "-": append(instructions, Unary_Op{op = '-'})
-        }
+        case .Binary_Op: append(instructions, Binary_Op{op = data[0]})
+        case .Unary_Op: append(instructions, Unary_Op{op = data[0]})
     }
 
     return ""
@@ -483,6 +478,8 @@ pop_program_stack :: proc(program: ^Program) -> f64 {
  * - returns the handle to access the equation
 */
 add_equation :: proc(equation: string) -> int {
+    using state
+
     if len(program_table_free) == 0 { return -1 }
 
     e: string
@@ -498,6 +495,8 @@ add_equation :: proc(equation: string) -> int {
 }
 
 recompile_equation :: proc(id: int, new_equation: string) {
+    using state
+
     if id >= PROGRAM_TABLE_SIZE || id < 0 { return }
 
     free_program(program_table[id])
@@ -511,6 +510,8 @@ recompile_equation :: proc(id: int, new_equation: string) {
 }
 
 remove_equation :: proc(id: int) {
+    using state
+
     if id >= PROGRAM_TABLE_SIZE || id < 0 { return }
 
     free_program(program_table[id])
@@ -518,8 +519,10 @@ remove_equation :: proc(id: int) {
     append(&program_table_free, id)
 }
 
-eval_equation :: proc(id: int, vtab: ^Variable_Table) {
-    if id >= PROGRAM_TABLE_SIZE || id < 0 { return }
+eval_equation :: proc(id: int, vtab: ^Variable_Table) -> string {
+    using state
+
+    if id >= PROGRAM_TABLE_SIZE || id < 0 { return "invalid id" }
 
     program := &program_table[id]
 
@@ -539,14 +542,18 @@ eval_equation :: proc(id: int, vtab: ^Variable_Table) {
                     case '*': push_program_stack(program, left * right)
                     case '/': push_program_stack(program, left / right)
                     case '^': push_program_stack(program, m.pow_f64(left, right))
+                    case: return "unknown binary operator"
                 }
             }
             case Unary_Op: {
                 switch op.op {
                     case '+': push_program_stack(program, +pop_program_stack(program))
                     case '-': push_program_stack(program, -pop_program_stack(program))
+                    case: return "unknown unary operator"
                 }
             }
         }
     }
+
+    return ""
 }

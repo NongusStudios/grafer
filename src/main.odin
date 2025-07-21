@@ -4,95 +4,78 @@ import "core:fmt"
 import m "core:math"
 import "core:strings"
 
-import rl "vendor:raylib"
-import rlgl "vendor:raylib/rlgl"
+import "vendor:glfw"
+import gl "vendor:OpenGL"
 
-init :: proc() {
-    using rl
+init_window :: proc() -> string {
+    using state
+    
+    if !glfw.Init() {
+        return "failed to initialise GLFW"
+    }
 
+    GL_MAJOR  :: 3
+    GL_MINROR :: 3
+
+    glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, GL_MAJOR)
+    glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, GL_MINROR)
+    glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    glfw.WindowHint(glfw.OPENGL_FORWARD_COMPAT, glfw.TRUE)
+
+    glfw.WindowHint(glfw.RESIZABLE, glfw.FALSE)
+
+    window = glfw.CreateWindow(settings.width, settings.height, "grafer", nil, nil)
+    glfw.MakeContextCurrent(window)
+    glfw.SwapInterval(1)
+
+    gl.load_up_to(GL_MAJOR, GL_MINROR, glfw.gl_set_proc_address)
+
+    w, h := glfw.GetFramebufferSize(window)
+    gl.Viewport(0, 0, w, h)
+
+    return ""
+}
+
+init :: proc() -> bool {
+    e := init_window()
+
+    if e != "" {
+        fmt.eprintln(e)
+        return false
+    }
+    
     init_program_table()
 
-    InitWindow(settings.width, settings.height, "grafer")
-    SetTargetFPS(60)
-
-    di := i32(settings.graph_dimensions[1] - settings.graph_dimensions[0])
-    graph_render_texture = LoadRenderTexture(di, di)
-
-    main_camera.zoom = 1.0
-
-    graph_camera.zoom = 4.0
-    graph_camera.target = {f32(settings.graph_dimensions[0]/4), f32(settings.graph_dimensions[0]/4)}
-
-    program_string_buf = make([]u8, 255)
-    program_string = cstring(raw_data(program_string_buf))
+    return true
 }
 
 cleanup :: proc() {
-    using rl
-    UnloadRenderTexture(graph_render_texture)
-    CloseWindow()
+    using state
 
     free_program_table()
-}
-
-// Makes an array of points using a compiled equation. 'f' is an equation id
-calculate_graph :: proc(f: int) -> [dynamic]rl.Vector2 {
-    using settings
-
-    STEP :: 1
-
-    points := make([dynamic]rl.Vector2, 0, int((graph_dimensions[1]-graph_dimensions[0]) / STEP))
-
-    for p := graph_dimensions[0]; p <= graph_dimensions[1]; p += STEP {
-        variable_table.x = p
-        variable_table.y = p
-        eval_equation(f, &variable_table)
-        append(&points, rl.Vector2{f32(variable_table.x), f32(variable_table.y)})
-    }
-
-    return points
+    glfw.DestroyWindow(window)
+    glfw.Terminate()
 }
 
 run :: proc() {
-    using rl
-
-    PADDING := f32(settings.width - i32(settings.graph_dimensions[1]*2))
+    using state
 
     program_id = add_equation("y=x")
 
-    for !WindowShouldClose() {
-        BeginDrawing()
-            ClearBackground(settings.background_colour)
-            
-            points := calculate_graph(program_id)
-            defer delete(points)
-
-            // Draw graph to texture
-            BeginTextureMode(graph_render_texture)
-                ClearBackground(settings.background_colour)
-                draw_graph(points[:])
-            EndTextureMode()
-
-            BeginMode2D(main_camera)
-                DrawTexture(graph_render_texture.texture, i32(PADDING), 0, WHITE)
-                draw_gui(PADDING)
-            EndMode2D()
-            
-        EndDrawing()
+    for !glfw.WindowShouldClose(window) {
+        glfw.PollEvents()
+        draw()
+        glfw.SwapBuffers(window)
     }
 }
 
 main :: proc() {
     using settings
 
-    width = 1280
-    height = 1080
+    width = 1024
+    height = 1024
 
-    graph_dimensions = {-f64(height/2), f64(height/2)}
-
-    background_colour = {220, 220, 220, 255}
-
-    init()
+    if !init(){return}
     defer cleanup()
 
     run()
