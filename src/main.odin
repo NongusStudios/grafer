@@ -7,6 +7,10 @@ import "core:strings"
 import "vendor:glfw"
 import gl "vendor:OpenGL"
 
+on_window_size_changed :: proc "c" (window: glfw.WindowHandle, w, h: i32) {
+    state.window_dimensions = {w, h}
+}
+
 init_window :: proc() -> string {
     using state
     
@@ -25,6 +29,9 @@ init_window :: proc() -> string {
     glfw.WindowHint(glfw.RESIZABLE, glfw.FALSE)
 
     window = glfw.CreateWindow(settings.width, settings.height, "grafer", nil, nil)
+
+    glfw.SetFramebufferSizeCallback(window, on_window_size_changed)
+
     glfw.MakeContextCurrent(window)
     glfw.SwapInterval(1)
 
@@ -43,8 +50,10 @@ init :: proc() -> bool {
         fmt.eprintln(e)
         return false
     }
-    
+
+    init_gfx()
     init_program_table()
+    init_graph_table()
 
     return true
 }
@@ -52,7 +61,9 @@ init :: proc() -> bool {
 cleanup :: proc() {
     using state
 
+    free_graph_table()
     free_program_table()
+    free_gfx()
     glfw.DestroyWindow(window)
     glfw.Terminate()
 }
@@ -60,7 +71,8 @@ cleanup :: proc() {
 run :: proc() {
     using state
 
-    program_id = add_equation("y=x")
+    g := add_graph("x=y*2")
+    graph_draw_queue[g] = 0
 
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()

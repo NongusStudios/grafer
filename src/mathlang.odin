@@ -389,9 +389,8 @@ Program :: struct {
 init_program_table :: proc() {
     using state
 
-    program_table_free = make([dynamic]int, 0, PROGRAM_TABLE_SIZE)
-    variable_table = init_vtab()
-    for i := 0; i < PROGRAM_TABLE_SIZE; i += 1 {
+    program_table_free = make([dynamic]int, 0, TABLE_SIZE)
+    for i := 0; i < TABLE_SIZE; i += 1 {
         append(&program_table_free, i)
     }
 }
@@ -400,7 +399,6 @@ free_program_table :: proc() {
     using state
 
     for program in program_table { free_program(program) }
-    free_vtab(&variable_table)
     delete(program_table_free)
 }
 
@@ -497,7 +495,7 @@ add_equation :: proc(equation: string) -> int {
 recompile_equation :: proc(id: int, new_equation: string) {
     using state
 
-    if id >= PROGRAM_TABLE_SIZE || id < 0 { return }
+    if id >= TABLE_SIZE || id < 0 { return }
 
     free_program(program_table[id])
     
@@ -512,7 +510,7 @@ recompile_equation :: proc(id: int, new_equation: string) {
 remove_equation :: proc(id: int) {
     using state
 
-    if id >= PROGRAM_TABLE_SIZE || id < 0 { return }
+    if id >= TABLE_SIZE || id < 0 { return }
 
     free_program(program_table[id])
     program_table[id] = {}
@@ -522,7 +520,7 @@ remove_equation :: proc(id: int) {
 eval_equation :: proc(id: int, vtab: ^Variable_Table) -> string {
     using state
 
-    if id >= PROGRAM_TABLE_SIZE || id < 0 { return "invalid id" }
+    if id >= TABLE_SIZE || id < 0 { return "invalid id" }
 
     program := &program_table[id]
 

@@ -2,23 +2,27 @@ package main
 
 import "vendor:glfw"
 
+TABLE_SIZE :: 256
+
 Settings :: struct {
     width:  i32,
     height: i32,      // 0 = min, 1 = max
 }
 
-settings: Settings
-state: struct {
+State :: struct {
     window: glfw.WindowHandle,
+    window_dimensions: [2]i32,
     
-    program_table: [PROGRAM_TABLE_SIZE]Program,
+    program_table: [TABLE_SIZE]Program,
     program_table_free: [dynamic]int,
+
+    graph_table: [TABLE_SIZE]Graph,
+    graph_table_free: [dynamic]int,
     variable_table: Variable_Table,
 
-    program_id: int,
-
+    graph_draw_queue: map[int]u8,
     gfx: Gfx,
 }
 
-
-PROGRAM_TABLE_SIZE :: 256
+settings: Settings
+state: State
